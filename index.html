@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minimal Zine Poster — effect options</title>
+<style>
+:root{
+  --paper:#efe9dc; --ink:#1b1a17; --dim:#8c877c; --line:#cfc7b6;
+  --accent:#1b3fd8;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --mono:"SF Mono",ui-monospace,"IBM Plex Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--mono); font-size:13px; line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:9; opacity:.5;
+  mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/><feColorMatrix type='saturate' values='0'/></filter><rect width='220' height='220' filter='url(%23n)' opacity='0.35'/></svg>");
+}
+.wrap{max-width:1240px; margin:0 auto; padding:7vh 5vw 16vh}
+section{margin-top:12vh}
+section:first-of-type{margin-top:0}
+h2{
+  font-size:11px; font-weight:400; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--dim); margin:0 0 2.5em; padding-bottom:.8em; border-bottom:1px solid var(--line);
+  display:flex; justify-content:space-between;
+}
+h2 span{color:var(--accent)}
+
+/* ---- studio ---- */
+.studio{display:grid; grid-template-columns:minmax(0,5fr) minmax(0,4fr); gap:4vw; align-items:start}
+.stage{position:sticky; top:4vh}
+.panel{position:sticky; top:4vh}
+@media(max-width:900px){
+  .studio{grid-template-columns:1fr}
+  .stage,.panel{position:static}
+  .frame{height:auto; width:min(360px,80vw)}
+}
+
+.frameWrap{position:relative; width:max-content; max-width:100%; margin:0 auto}
+.frame{
+  position:relative; aspect-ratio:3/5; height:clamp(460px,76vh,1100px); width:auto; max-width:100%;
+  background:#f5f0e6; overflow:hidden; isolation:isolate; cursor:zoom-in;
+  box-shadow:0 1px 0 rgba(0,0,0,.06), 0 26px 60px -34px rgba(0,0,0,.55);
+}
+.frame *{position:absolute}
+.frame .anchor{overflow:hidden}
+/* multiply is what makes it ink rather than a photo: highlights drop out and the paper reads through.
+   It sits on the wrapper, so the raw and screened copies inside crossfade normally and the pair
+   multiplies onto the sheet exactly once. */
+.frame .ink{position:absolute; inset:0; mix-blend-mode:multiply; isolation:isolate}
+.frame .anchor img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block}
+.frame .tx{font-family:var(--mono); color:var(--ink); white-space:nowrap; transform-origin:left top; line-height:1.5}
+.frame .tx[contenteditable]{cursor:text; outline:0}
+.frame .tx[contenteditable]:hover{box-shadow:0 0 0 1px rgba(27,26,23,.2)}
+.frame .tx[contenteditable]:focus{box-shadow:0 0 0 1px var(--accent)}
+.frame .serif{font-family:var(--serif)}
+.frame .grain,.frame .tint{inset:0; pointer-events:none; mix-blend-mode:multiply}
+
+/* magnifier */
+.lens{
+  position:absolute; width:190px; height:190px; border-radius:50%; overflow:hidden;
+  pointer-events:none; display:none; z-index:8; background:var(--paper);
+  box-shadow:0 0 0 1px rgba(27,26,23,.35), 0 20px 40px -18px rgba(0,0,0,.6);
+}
+/* the clone must keep the sheet's real pixel size — max-width:100% would clamp it to the lens */
+.lens .frame{position:absolute; box-shadow:none; transform-origin:0 0; aspect-ratio:auto;
+  max-width:none; max-height:none; cursor:default}
+
+.bar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:1.2em}
+.btn{font:inherit; color:inherit; background:transparent; border:1px solid var(--ink); padding:.55em 1.2em; cursor:pointer}
+.btn:hover{background:var(--ink); color:var(--paper)}
+.btn.ghost{border-color:var(--line); color:var(--dim)}
+.btn.ghost:hover{background:transparent; border-color:var(--accent); color:var(--accent)}
+select{font:inherit; color:inherit; background:transparent; border:1px solid var(--line); padding:.55em .7em}
+.hint{color:var(--dim); font-size:11px; margin-top:.9em}
+
+/* ---- tag navigation: serif text nav, deliberately unlike the mono option chips ---- */
+.tags{display:flex; flex-wrap:wrap; gap:.35em 1.6em; padding-bottom:1em; border-bottom:1px solid var(--line)}
+.tag{
+  font-family:var(--serif); font-size:17px; line-height:1.5; cursor:pointer;
+  background:none; border:0; border-bottom:2px solid transparent; padding:0 0 .25em;
+  color:var(--dim); transition:.15s;
+}
+.tag:hover{color:var(--ink)}
+.tag[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--accent)}
+
+.axis{padding-top:2em; min-height:280px}
+.axis h3{font-family:var(--serif); font-size:22px; font-weight:400; margin:0 0 .2em}
+.axis p{margin:0 0 1.4em; color:var(--dim); max-width:50ch}
+.opts{display:flex; flex-wrap:wrap; gap:8px}
+.opt{font:inherit; color:inherit; cursor:pointer; background:transparent; border:1px solid var(--line); padding:.45em .9em; transition:.15s}
+.opt:hover{border-color:var(--ink)}
+.opt[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--paper)}
+
+.slider{display:flex; align-items:center; gap:1em; margin-top:2.2em; color:var(--dim)}
+.slider label{font-size:11px; letter-spacing:.18em; text-transform:uppercase}
+.slider output{font-size:11px; min-width:4ch; color:var(--ink)}
+.slider input[type=range]{
+  -webkit-appearance:none; appearance:none; flex:1; max-width:260px; height:1px;
+  background:var(--line); outline:0;
+}
+.slider input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; width:13px; height:13px; border-radius:50%;
+  background:var(--accent); cursor:grab;
+}
+.slider input[type=range]::-moz-range-thumb{
+  width:13px; height:13px; border:0; border-radius:50%; background:var(--accent); cursor:grab;
+}
+.recipe{margin-top:2em; border-top:1px solid var(--line); padding-top:1.2em; white-space:pre-wrap; word-break:break-word; font-size:12px}
+.recipe b{font-weight:400; color:var(--dim)}
+
+.credits{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:3vw 2.5vw}
+.credits h3{font-family:var(--serif); font-size:17px; font-weight:400; margin:0 0 .5em}
+.credits p{margin:0; color:var(--dim); max-width:42ch}
+.credits strong{font-weight:400; color:var(--ink)}
+.credits code{font-size:11px; color:var(--ink); background:rgba(27,26,23,.05); padding:.1em .35em}
+footer{margin-top:12vh; color:var(--dim); font-size:11px; border-top:1px solid var(--line); padding-top:1.4em}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<!-- Print filters. Ink is screened into discrete levels and clipped to the source alpha, so highlights
+     drop out entirely and the paper below shows through instead of a white rectangle. -->
+<svg id="fx" width="0" height="0" aria-hidden="true" style="position:absolute"><defs>
+
+  <filter id="f-xerox" color-interpolation-filters="sRGB">
+    <feGaussianBlur stdDeviation=".35" result="b"/>
+    <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="3" result="n"/>
+    <feColorMatrix in="n" type="saturate" values="0" result="g"/>
+    <feComposite in="b" in2="g" operator="arithmetic" k1=".5" k2=".85" k3=".3" k4="-.22" result="m"/>
+    <feComponentTransfer in="m" result="p">
+      <feFuncR type="discrete" tableValues="0 .55 1"/><feFuncG type="discrete" tableValues="0 .55 1"/><feFuncB type="discrete" tableValues="0 .55 1"/>
+    </feComponentTransfer>
+    <feComposite in="p" in2="SourceGraphic" operator="in"/>
+  </filter>
+
+  <filter id="f-riso" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency=".55" numOctaves="3" seed="11" result="n"/>
+    <feColorMatrix in="n" type="saturate" values="0" result="g"/>
+    <feComposite in="SourceGraphic" in2="g" operator="arithmetic" k1=".62" k2=".72" k3=".38" k4="-.2" result="m"/>
+    <feComponentTransfer in="m" result="p">
+      <feFuncR type="discrete" tableValues="0 .3 .62 1"/><feFuncG type="discrete" tableValues="0 .3 .62 1"/><feFuncB type="discrete" tableValues="0 .3 .62 1"/>
+    </feComponentTransfer>
+    <feComposite in="p" in2="SourceGraphic" operator="in"/>
+  </filter>
+
+  <filter id="f-halftone" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="2.6" numOctaves="1" seed="5" result="n"/>
+    <feColorMatrix in="n" type="saturate" values="0" result="g"/>
+    <feComposite in="SourceGraphic" in2="g" operator="arithmetic" k1=".6" k2=".75" k3=".4" k4="-.05" result="m"/>
+    <feComponentTransfer in="m" result="p">
+      <feFuncR type="discrete" tableValues="0 1"/><feFuncG type="discrete" tableValues="0 1"/><feFuncB type="discrete" tableValues="0 1"/>
+    </feComponentTransfer>
+    <feComposite in="p" in2="SourceGraphic" operator="in"/>
+  </filter>
+
+  <filter id="f-bleed" color-interpolation-filters="sRGB">
+    <feMorphology operator="dilate" radius=".35" result="d"/>
+    <feGaussianBlur in="d" stdDeviation=".5" result="b"/>
+    <feTurbulence type="fractalNoise" baseFrequency=".4" numOctaves="2" seed="9" result="n"/>
+    <feColorMatrix in="n" type="saturate" values="0" result="g"/>
+    <feComposite in="b" in2="g" operator="arithmetic" k1=".35" k2=".9" k3=".2" k4="-.14" result="m"/>
+    <feComposite in="m" in2="SourceGraphic" operator="in"/>
+  </filter>
+
+  <filter id="f-grain" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="1.7" numOctaves="2" seed="2" result="n"/>
+    <feColorMatrix in="n" type="saturate" values="0" result="g"/>
+    <feComposite in="SourceGraphic" in2="g" operator="arithmetic" k1=".38" k2=".88" k3=".26" k4="-.16" result="m"/>
+    <feComponentTransfer in="m" result="p">
+      <feFuncR type="discrete" tableValues="0 .18 .36 .54 .72 1"/><feFuncG type="discrete" tableValues="0 .18 .36 .54 .72 1"/><feFuncB type="discrete" tableValues="0 .18 .36 .54 .72 1"/>
+    </feComponentTransfer>
+    <feComposite in="p" in2="SourceGraphic" operator="in"/>
+  </filter>
+
+  <filter id="f-mottle" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency=".08" numOctaves="4" seed="13" result="n"/>
+    <feColorMatrix in="n" type="saturate" values="0" result="g"/>
+    <feComposite in="SourceGraphic" in2="g" operator="arithmetic" k1=".45" k2=".82" k3=".3" k4="-.18" result="m"/>
+    <feComposite in="m" in2="SourceGraphic" operator="in"/>
+  </filter>
+
+  <!-- ragged deckle edge: push the alpha boundary around with low-frequency noise -->
+  <filter id="f-torn" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="4" seed="17" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="14" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+
+</defs></svg>
+
+<div class="wrap">
+
+<section>
+  <h2>Credits <span>reference</span></h2>
+  <div class="credits">
+    <div>
+      <h3>The skill</h3>
+      <p><a href="https://github.com/LiamGvchi/gc-minimal-zine-poster"><strong>gc-minimal-zine-poster</strong></a> v0.3 —
+      a skill by <a href="https://github.com/LiamGvchi">LiamGvchi</a> that turns a theme, sentence, article, mood, or
+      photograph into a sparse paper-texture editorial poster. Released under the MIT License, © 2026 LiamGvchi.</p>
+    </div>
+    <div>
+      <h3>Where these options come from</h3>
+      <p>Every option on this page is transcribed from the skill's own reference files —
+      <code>references/variation-engine.md</code> for the layout, anchor, typography, texture, and decoration axes, and
+      <code>references/style-system.md</code> for the paper, color, and mood rules. Nothing here was invented.</p>
+    </div>
+    <div>
+      <h3>This page</h3>
+      <p>An unofficial visual index of those options, not affiliated with or endorsed by the skill's author.
+      The sheet is a CSS approximation built to preview a recipe — the actual posters are rendered by the skill
+      through an image model, and will not look identical.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Studio <span id="count"></span></h2>
+  <div class="studio">
+    <div class="stage">
+      <div class="frameWrap">
+        <div class="frame" id="frame"></div>
+        <div class="lens" id="lens"></div>
+      </div>
+      <div class="bar">
+        <label class="btn">upload photo<input type="file" accept="image/*" id="file" hidden></label>
+        <button class="btn ghost" id="reset" hidden>remove photo</button>
+        <span class="hint" id="fname">default photo</span>
+      </div>
+      <div class="bar">
+        <select id="fmt">
+          <option value="png">PNG</option>
+          <option value="jpeg">JPEG</option>
+          <option value="webp">WebP</option>
+          <option value="svg">SVG</option>
+        </select>
+        <select id="size">
+          <option value="1200">1200 × 2000</option>
+          <option value="1800">1800 × 3000</option>
+          <option value="2400">2400 × 4000</option>
+        </select>
+        <button class="btn" id="export">export</button>
+        <button class="btn ghost" id="mag">magnifier: on</button>
+      </div>
+      <div class="hint" id="exportHint">Hover the sheet to magnify. Click any text on the sheet to edit it.</div>
+    </div>
+
+    <div class="panel">
+      <div class="tags" id="tags"></div>
+      <div class="axis" id="axis"></div>
+      <div class="recipe"><b>recipe</b><br><span id="recipe"></span></div>
+      <div class="bar"><button class="btn ghost" id="copy">copy recipe</button><button class="btn ghost" id="rand">randomize</button></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Static preview only — the real render happens in the skill ·
+  <a href="https://github.com/LiamGvchi/gc-minimal-zine-poster">LiamGvchi/gc-minimal-zine-poster</a> · MIT
+</footer>
+</div>
+
+<script>
+// ponytail: options transcribed verbatim from references/variation-engine.md + style-system.md
+const AXES = [
+ {k:'layout', t:'Layout family', d:'Where the visual event sits and how the empty paper is weighted.',
+  o:['center-fragment','lower-left-float','upper-right-block','dual-panel','irregular-cutout','type-led','dot-orbit','single-specimen','diagonal-notes','edge-counterweight']},
+ {k:'anchor', t:'Anchor form', d:'The material the metaphor is printed as.',
+  o:['tiny faded photo','clean rectangular photo crop','torn-paper clipping','flat silhouette','opaque printed color block','old printed illustration','object specimen','translucent geometric overlay','abstract texture window','fragmented type as image']},
+ {k:'type', t:'Typography mode', d:'Text behaves like a note or a label, never a headline.',
+  o:['fragmented floating letters','short phrase pressed against the image edge','archive microtext with date or weather','diagonal scattered words','low-contrast gray ghost text','headline-as-object with rough letterpress','text inside a color block or cutout','almost textless with one tiny caption','no typography']},
+ {k:'texture', t:'Texture mode', d:'How the sheet was reproduced and scanned.',
+  o:['xerox softness','risograph grain','letterpress ink bleed','halftone degradation','film-grain photograph','scan noise and paper fibers','aged paper mottling','slight misregistration','soft motion blur on secondary text','no texture']},
+ {k:'decor', t:'Decorative system', d:'Zero to three restrained marks. Never the subject.',
+  o:['dot group + fine annotation line','tiny arrow + dashed line','transparent rectangle + registration mark','one curved hand-drawn line','small color block + date-like label','no decorative marks']},
+ {k:'hue', t:'Main hue', d:'One high-chroma anchor. It colours marks, some type and four anchor forms, not the photo.',
+  o:['cobalt','ultramarine','cyan','violet','magenta-pink','lemon yellow','pear green','orange','tomato red']},
+ {k:'paper', t:'Paper tone', d:'The field everything sits on.',
+  o:['warm white','ivory','light gray','old-paper yellow','pale khaki','light kraft beige']},
+ {k:'mood', t:'Mood', d:'The emotional temperature of the sheet.',
+  o:['quiet','summer','solitude','childhood','seaside','afternoon','night','memory','slight surrealism']},
+];
+
+const HUE   = {cobalt:'#1b3fd8',ultramarine:'#2d2fa8',cyan:'#00a5c8',violet:'#6a3fd0','magenta-pink':'#e0348b','lemon yellow':'#e8c400','pear green':'#7fae23',orange:'#e8630f','tomato red':'#d9351f'};
+const PAPER = {'warm white':'#f5f0e6',ivory:'#f3ecdd','light gray':'#e9e7e2','old-paper yellow':'#efe4c6','pale khaki':'#e6e0c9','light kraft beige':'#e3d7c0'};
+// x,y,w,h in % of the 3:5 sheet — sized so the cluster lands in the 8–25% band style-system.md asks for
+const LAYOUT = {
+ 'center-fragment'    :[33.8,38.4,32.4,20.3], 'lower-left-float'  :[7.8,56.7,40.5,25.7],
+ 'upper-right-block'  :[46.0, 9.3,45.9,28.4], 'dual-panel'        :[14.3,34.9,36.5,24.3],
+ 'irregular-cutout'   :[18.3,29.3,59.4,36.5], 'type-led'          :[6.3,43.3,67.5,13.5],
+ 'dot-orbit'          :[37.9,43.1,24.3,14.9], 'single-specimen'   :[32.5,30.3,35.1,36.5],
+ 'diagonal-notes'     :[19.0,27.5,31.0,18.9], 'edge-counterweight':[48.4,53.5,43.2,27.0],
+};
+const MOOD = {
+ quiet:'rgba(255,255,255,0)', summer:'rgba(255,214,120,.20)', solitude:'rgba(150,165,190,.18)',
+ childhood:'rgba(255,190,170,.18)', seaside:'rgba(140,200,215,.20)', afternoon:'rgba(255,196,130,.24)',
+ night:'rgba(40,55,105,.24)', memory:'rgba(200,175,135,.26)', 'slight surrealism':'rgba(190,140,220,.20)',
+};
+// [noise freq, noise opacity, css filter, svg print filter]
+const TEX = {
+ 'xerox softness'                    :[.7 ,.30,'grayscale(1) contrast(1.7) brightness(1.1)'  ,'f-xerox'],
+ 'risograph grain'                   :[1.4,.55,'contrast(1.25) saturate(.45)'                ,'f-riso'],
+ 'letterpress ink bleed'             :[.5 ,.22,'contrast(1.45) brightness(.95)'              ,'f-bleed'],
+ 'halftone degradation'              :[2.4,.60,'grayscale(1) contrast(1.35)'                 ,'f-halftone'],
+ 'film-grain photograph'             :[1.9,.42,'grayscale(1) contrast(1.05) brightness(1.04)','f-grain'],
+ 'scan noise and paper fibers'       :[1.1,.48,'grayscale(1) contrast(.95)'                  ,'f-grain'],
+ 'aged paper mottling'               :[.35,.50,'sepia(.45) contrast(1.05)'                   ,'f-mottle'],
+ 'slight misregistration'            :[.9 ,.30,'grayscale(1) contrast(1.1)'                  ,'f-riso'],
+ 'soft motion blur on secondary text':[.8 ,.32,'grayscale(1) contrast(1.05)'                 ,'f-grain'],
+ 'no texture'                        :[0  ,0  ,''                                            ,''],
+};
+
+const pick = {}; AXES.forEach(a => pick[a.k] = a.o[0]);
+pick.anchor = 'clean rectangular photo crop';   // o[0] is 'tiny faded photo' — too small to judge a photo by
+let active = 'layout';
+let strength = .45;                             // texture amount; full-strength screening is heavy-handed
+
+/* ---------- photo: bundled default, user upload overrides, remove reverts ---------- */
+const DEFAULT_SRC = 'examples/default.jpg';
+let defaultSrc = null;                                   // bundled fallback
+let userSrc = localStorage.getItem('zine-photo');        // last upload becomes the default
+const photoSrc = () => userSrc || defaultSrc;
+
+fetch(DEFAULT_SRC).then(r => r.ok ? r.blob() : Promise.reject())
+  .then(b => new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); }))
+  .then(d => { defaultSrc = d; render(); })
+  .catch(() => {                       // file:// or missing — still display it if it loads
+    const im = new Image();
+    im.onload = () => { defaultSrc = DEFAULT_SRC; render();
+      exportHint.textContent = 'Hover to magnify. To export the default photo, serve the folder: python3 -m http.server'; };
+    im.src = DEFAULT_SRC;
+  });
+
+/* ---------- tag nav ---------- */
+const tagsEl = document.getElementById('tags'), axisEl = document.getElementById('axis');
+function drawTags(){
+  tagsEl.innerHTML = '';
+  AXES.forEach(a => {
+    const b = document.createElement('button');
+    b.className = 'tag'; b.setAttribute('aria-selected', a.k === active);
+    b.textContent = a.t;
+    b.onclick = () => { active = a.k; drawTags(); drawAxis(); };
+    tagsEl.append(b);
+  });
+}
+function drawAxis(){
+  const a = AXES.find(x => x.k === active);
+  axisEl.innerHTML = `<h3>${a.t}</h3><p>${a.d}</p>`;
+  const box = document.createElement('div'); box.className = 'opts';
+  a.o.forEach(o => {
+    const b = document.createElement('button');
+    b.className = 'opt'; b.textContent = o; b.setAttribute('aria-pressed', o === pick[a.k]);
+    b.onclick = () => { pick[a.k] = o; drawAxis(); drawTags(); render(); };
+    box.append(b);
+  });
+  axisEl.append(box);
+
+  if(a.k === 'texture'){
+    const row = document.createElement('div');
+    row.className = 'slider';
+    row.innerHTML = `<label for="strength">strength</label>
+      <input type="range" id="strength" min="0" max="100" step="1" value="${Math.round(strength*100)}">
+      <output>${Math.round(strength*100)}%</output>`;
+    const out = row.querySelector('output');
+    row.querySelector('input').oninput = e => {   // render only — redrawing the axis would drop the drag
+      strength = e.target.value / 100;
+      out.textContent = e.target.value + '%';
+      render();
+    };
+    axisEl.append(row);
+  }
+}
+document.getElementById('count').textContent =
+  AXES.reduce((n,a) => n * a.o.length, 1).toLocaleString() + ' combinations';
+
+/* ---------- preview ---------- */
+const frame = document.getElementById('frame'), lens = document.getElementById('lens'),
+      exportHint = document.getElementById('exportHint');
+// Single-quoted url() inside a double-quoted style attribute. The inner SVG uses double quotes so
+// encodeURIComponent turns them into %22 — it leaves ' and ( ) alone, and a bare ( would kill an
+// unquoted url() token, which is exactly how this layer went silently missing once before.
+const noise = (freq,op) => `background-image:url('data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><filter id="g" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="${freq}" numOctaves="3"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncR type="linear" slope=".22" intercept=".78"/><feFuncG type="linear" slope=".22" intercept=".78"/><feFuncB type="linear" slope=".22" intercept=".78"/><feFuncA type="linear" slope="0" intercept="1"/></feComponentTransfer></filter><rect width="180" height="180" filter="url(#g)" opacity="${op}"/></svg>`)}')`;
+
+function anchorHTML(box, accent, filter, plain, fx = TEX[pick.texture][3]){
+  const [x,y,w,h] = box, src = photoSrc();
+
+  // prompt-compiler.md renders every anchor form "using [anchor_treatment]", so the texture must
+  // compose WITH each anchor's own look, never be replaced by it. `own` is the anchor's treatment;
+  // the texture filter is always appended after it, and the screened copy always rides on top.
+  const ink = (own = '', extra = '') => {
+    const f = [own, filter].filter(Boolean).join(' ');
+    const style = extra + (f ? `filter:${f};` : '');
+    return src
+      ? `<div class="ink" style="${style}"><img src="${src}">`
+        + (fx && strength > 0 ? `<img src="${src}" style="filter:url(#${fx});opacity:${strength}">` : '')
+        + `</div>`
+      : `<div class="ink" style="background:linear-gradient(150deg,#c9c3b6,#9b958a);${style}"></div>`;
+  };
+  const at = (b, style, inner='') =>
+    `<div class="anchor" style="left:${b[0]}%;top:${b[1]}%;width:${b[2]}%;height:${b[3]}%;${style}">${inner}</div>`;
+
+  switch(pick.anchor){
+    case 'tiny faded photo':
+      return at([x+w*.2, y+h*.2, w*.6, h*.6], '', ink('', 'opacity:.55;'));
+    case 'clean rectangular photo crop':
+      return at([x,y,w,h], '', ink());
+    case 'torn-paper clipping':
+      return at([x,y,w,h],
+        'background:#fdfaf3;filter:url(#f-torn);clip-path:polygon(2% 6%,18% 0,42% 5%,68% 1%,92% 7%,100% 30%,97% 62%,100% 92%,74% 100%,45% 96%,20% 100%,3% 88%,0 55%);',
+        `<div class="anchor" style="inset:7%">${ink()}</div>`);
+    case 'flat silhouette':
+      return at([x,y,w,h], '', ink('grayscale(1) contrast(3) brightness(.25)'));
+    case 'opaque printed color block':
+      return at([x,y,w,h], `background:${accent};`, ink('', 'mix-blend-mode:screen;opacity:.85;'));
+    case 'old printed illustration':
+      return at([x,y,w,h], '', ink('sepia(.85) contrast(1.5) brightness(1.08)', 'opacity:.8;'));
+    case 'object specimen':
+      return at([x,y,w,h], 'background:#fbf7ee;box-shadow:0 6px 18px -12px rgba(0,0,0,.6);',
+        `<div class="anchor" style="inset:9%">${ink()}</div>`);
+    case 'translucent geometric overlay':
+      return at([x,y,w,h], '', ink()) +
+        `<div style="left:${x+w*.45}%;top:${y-h*.16}%;width:${w*.55}%;height:${h*.9}%;background:${accent};opacity:.42;mix-blend-mode:multiply"></div>`;
+    case 'abstract texture window':
+      return at([x,y,w,h], `background:${accent};`,
+        ink('grayscale(1) contrast(2)', 'opacity:.28;')
+        + (strength > 0 ? `<div style="inset:0;${noise(2.2,.85*strength)};mix-blend-mode:screen"></div>` : ''));
+    case 'fragmented type as image':
+      return at([x,y,w,h], '', ink('', 'opacity:.5;')) +
+        `<div class="tx serif" ${plain?'':ed('anchor-glyph')} style="left:${x-2}%;top:${y-h*.25}%;font-size:${Math.min(w,44)*.9}px;color:${accent};line-height:.85;letter-spacing:-.05em">${T('anchor-glyph','Aa')}</div>`;
+  }
+}
+
+// every string on the sheet is editable in place; edits live in TXT, keyed by typography mode
+const TXT = {};
+const T  = (k,def) => TXT[k] !== undefined ? TXT[k] : def;
+const ed = k => `contenteditable="true" spellcheck="false" data-t="${k}"`;
+
+function typeHTML(box, accent){
+  const [x,y,w,h] = box, s = 'font-size:6px;letter-spacing:.14em;', dim = 'color:#8c877c;';
+  const m = pick.type;
+  switch(m){
+    case 'fragmented floating letters':
+      return ['m','o','t','h'].map((c,i) =>
+        `<div class="tx serif" ${ed(m+i)} style="left:${[12,78,22,66][i]}%;top:${[22,34,74,82][i]}%;font-size:13px;${i===1?`color:${accent};`:dim}">${T(m+i,c)}</div>`).join('');
+    case 'short phrase pressed against the image edge':
+      return `<div class="tx" ${ed(m)} style="left:${x}%;top:${y+h+1.5}%;${s}">${T(m,'a quiet interval, unfinished')}</div>`;
+    case 'archive microtext with date or weather':
+      return ['no. 041 / 06:20','overcast, light wind','film 400 — scan 03'].map((t,i) =>
+        `<div class="tx" ${ed(m+i)} style="left:8%;bottom:${8+(2-i)*2.2}%;${s}${dim}">${T(m+i,t)}</div>`).join('');
+    case 'diagonal scattered words':
+      return ['almost','then','not yet'].map((t,i) =>
+        `<div class="tx" ${ed(m+i)} style="left:${[16,44,64][i]}%;top:${[68,78,88][i]}%;${s}transform:rotate(-24deg);${dim}">${T(m+i,t)}</div>`).join('');
+    case 'low-contrast gray ghost text':
+      return `<div class="tx serif" ${ed(m)} style="left:6%;top:${y-13}%;font-size:34px;color:rgba(27,26,23,.13)">${T(m,'interval')}</div>`;
+    case 'headline-as-object with rough letterpress':
+      return `<div class="tx serif" ${ed(m)} style="left:8%;top:${y+h+3}%;font-size:22px;letter-spacing:-.02em;text-shadow:.6px .4px 0 rgba(27,26,23,.35)">${T(m,'Paper Field')}</div>`;
+    case 'text inside a color block or cutout':
+      return `<div style="left:8%;top:${y+h+3}%;width:34%;height:6%;background:${accent}"></div>
+              <div class="tx" ${ed(m)} style="left:10%;top:${y+h+4.3}%;${s}color:#f3ecdd">${T(m,'EDITION OF 40')}</div>`;
+    case 'almost textless with one tiny caption':
+      return `<div class="tx" ${ed(m)} style="left:8%;bottom:7%;font-size:5px;letter-spacing:.2em;${dim}">${T(m,pick.mood)}</div>`;
+    case 'no typography':
+      return '';
+  }
+}
+
+function decorHTML(box, accent){
+  const [x,y,w,h] = box;
+  switch(pick.decor){
+    case 'dot group + fine annotation line': {
+      const dx = x + w + 12 > 96 ? x - 11 : x + w + 4;   // flip inboard when the anchor hugs the right edge
+      return [0,1,2].map(i => `<div style="left:${dx+i*3}%;top:${y+2+i*1.2}%;width:1.6%;height:.95%;border-radius:50%;background:${accent}"></div>`).join('')
+        + `<div style="left:${x}%;top:${y-4}%;width:${w}%;height:1px;background:#8c877c"></div>`;
+    }
+    case 'tiny arrow + dashed line': {
+      const right = x < 12;                              // no room on the left — point in from the other side
+      const ax = right ? x + w + 2 : x - 9;
+      return `<div style="left:${ax}%;top:${y+h/2}%;width:7%;height:1px;background:${accent}"></div>
+              <div style="left:${right ? ax+0.5 : ax+5}%;top:${y+h/2-1}%;width:2%;height:2%;border-top:1px solid ${accent};border-${right?'left':'right'}:1px solid ${accent};transform:rotate(${right?-45:45}deg)"></div>
+              <div style="left:12%;bottom:16%;width:40%;height:0;border-top:1px dashed #b3ac9e"></div>`;
+    }
+    case 'transparent rectangle + registration mark':
+      return `<div style="left:${x-6}%;top:${y-4}%;width:${w+14}%;height:${h+9}%;border:1px solid rgba(27,26,23,.28)"></div>
+              <div style="right:9%;top:8%;width:3%;height:1.8%;border:1px solid ${accent};border-radius:50%"></div>
+              <div style="right:10.4%;top:7%;width:1px;height:3.8%;background:${accent}"></div>`;
+    case 'one curved hand-drawn line':
+      return `<svg viewBox="0 0 300 500" preserveAspectRatio="none" style="inset:0;width:100%;height:100%"><path d="M40 ${y*5+40} C 120 ${y*5-40}, 220 ${y*5+120}, 268 ${y*5+30}" fill="none" stroke="${accent}" stroke-width="1.4" opacity=".8"/></svg>`;
+    case 'small color block + date-like label':
+      return `<div style="right:9%;bottom:12%;width:7%;height:4.2%;background:${accent}"></div>
+              <div class="tx" ${ed('decor-date')} style="right:9%;bottom:8%;font-size:6px;letter-spacing:.18em;color:#8c877c">${T('decor-date','1998.04')}</div>`;
+    case 'no decorative marks': return '';
+  }
+}
+
+function sheetHTML(){
+  const accent = HUE[pick.hue], box = LAYOUT[pick.layout];
+  const [freq, op, filter] = TEX[pick.texture];
+
+  let html = anchorHTML(box, accent, filter);
+  if(pick.layout === 'dual-panel')
+    html += anchorHTML([box[0]+box[2]+3, box[1]+4, box[2]*.62, box[3]*.72], accent, filter, true);
+  if(pick.texture === 'slight misregistration')
+    html = `<div style="inset:0;opacity:.4;mix-blend-mode:multiply;transform:translate(1.2%,.7%)">`
+         + anchorHTML(box, accent, 'grayscale(1) sepia(1) hue-rotate(180deg) saturate(4)', true, '') + `</div>` + html;
+
+  html += typeHTML(box, accent) + decorHTML(box, accent);
+  if(pick.texture === 'soft motion blur on secondary text')
+    html = html.replace(/class="tx/g, 'style="filter:blur(1.1px)" class="tx');
+  html += `<div class="tint" style="background:${MOOD[pick.mood]}"></div>`;
+  if(op > 0 && strength > 0)
+    html += `<div class="grain" style="${noise(.16,.55)};opacity:${.4*strength}"></div>`  // slow mottle: sheet body
+          + `<div class="grain" style="${noise(freq, op*strength)}"></div>`;              // fibers and dust
+  return html;
+}
+
+function render(){
+  document.documentElement.style.setProperty('--accent', HUE[pick.hue]);
+  frame.style.background = PAPER[pick.paper];
+  frame.innerHTML = sheetHTML();
+  lens.innerHTML = '';   // rebuilt on next hover
+  document.getElementById('recipe').textContent =
+    `[${pick.layout} / <your metaphor> / ${pick.anchor} / ${pick.type} / ${pick.hue} / ${pick.texture} / ${pick.decor} / ${pick.mood}]`
+    + `\non ${pick.paper} paper, vertical 3:5, 70–90% open field.`;
+}
+
+/* ---------- magnifier ---------- */
+const ZOOM = 2.6, L = 190;
+let magnify = true, editing = false;
+const magBtn = document.getElementById('mag');
+magBtn.onclick = () => { magnify = !magnify; magBtn.textContent = 'magnifier: ' + (magnify?'on':'off'); if(!magnify) lens.style.display='none'; };
+
+frame.addEventListener('mousemove', e => {
+  if(!magnify || editing) return;
+  const r = frame.getBoundingClientRect();
+  if(!r.width) return;
+  const px = e.clientX - r.left, py = e.clientY - r.top;
+  if(!lens.firstChild){
+    const clone = document.createElement('div');
+    clone.className = 'frame';
+    clone.innerHTML = frame.innerHTML;
+    clone.querySelectorAll('[contenteditable]').forEach(n => n.removeAttribute('contenteditable'));
+    lens.append(clone);
+  }
+  // ponytail: re-size every move — the frame is vh-based, so a resize would strand a cached size
+  const c = lens.firstChild;
+  c.style.width = r.width + 'px'; c.style.height = r.height + 'px'; c.style.background = PAPER[pick.paper];
+  c.style.transform = `translate(${L/2 - px*ZOOM}px, ${L/2 - py*ZOOM}px) scale(${ZOOM})`;
+  lens.style.left = (px - L/2) + 'px';
+  lens.style.top  = (py - L/2) + 'px';
+  lens.style.display = 'block';
+});
+frame.addEventListener('mouseleave', () => lens.style.display = 'none');
+frame.addEventListener('focusin',  () => { editing = true;  lens.style.display = 'none'; });
+frame.addEventListener('focusout', () => { editing = false; });
+frame.addEventListener('input', e => {
+  const k = e.target.dataset && e.target.dataset.t;
+  if(k !== undefined && k !== '') TXT[k] = e.target.textContent;
+});
+
+/* ---------- upload / remove ---------- */
+const file = document.getElementById('file'), reset = document.getElementById('reset'), fname = document.getElementById('fname');
+if(userSrc){ reset.hidden = false; fname.textContent = 'your photo'; }
+
+// ponytail: shrink before storing — a raw phone photo blows the localStorage quota
+const downscale = (src, max = 1600) => new Promise(res => {
+  const im = new Image();
+  im.onload = () => {
+    const k = Math.min(1, max / Math.max(im.width, im.height));
+    if(k === 1) return res(src);
+    const c = document.createElement('canvas');
+    c.width = im.width * k | 0; c.height = im.height * k | 0;
+    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+    res(c.toDataURL('image/jpeg', .9));
+  };
+  im.onerror = () => res(src);
+  im.src = src;
+});
+
+file.onchange = e => {
+  const f = e.target.files[0];
+  if(!f || !f.type.startsWith('image/')) return;
+  const fr = new FileReader();                  // data URI, so export never taints the canvas
+  fr.onload = async () => {
+    userSrc = await downscale(fr.result);
+    try{ localStorage.setItem('zine-photo', userSrc); }catch(_){ /* too big to remember; still usable now */ }
+    fname.textContent = f.name; reset.hidden = false; render();
+  };
+  fr.readAsDataURL(f);
+};
+reset.onclick = () => {
+  userSrc = null; localStorage.removeItem('zine-photo');
+  file.value = ''; reset.hidden = true; fname.textContent = 'bundled photo'; render();
+};
+
+/* ---------- export ---------- */
+// ponytail: XMLSerializer, not innerHTML — foreignObject is parsed as XML, so <img> must self-close
+function svgString(px){
+  const r = frame.getBoundingClientRect(), k = px / r.width;
+  const holder = document.createElement('div');
+  holder.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+  const sheet = document.createElement('div');
+  sheet.className = 'frame';
+  sheet.setAttribute('style', `position:relative;width:${r.width}px;height:${r.height}px;`
+    + `background:${PAPER[pick.paper]};transform:scale(${k});transform-origin:0 0;box-shadow:none`);
+  sheet.innerHTML = frame.innerHTML;
+  sheet.querySelectorAll('[contenteditable]').forEach(n => n.removeAttribute('contenteditable'));
+  holder.append(sheet);
+  const css = document.querySelector('style').textContent;   // CDATA: the CSS holds raw '<' in data URIs
+  // the sheet references url(#f-…), so the defs must travel with it
+  const defs = document.getElementById('fx').innerHTML;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${Math.round(r.height*k)}">`
+    + defs
+    + `<foreignObject width="100%" height="100%">`
+    + `<style xmlns="http://www.w3.org/1999/xhtml"><![CDATA[${css}]]></style>`
+    + new XMLSerializer().serializeToString(holder)
+    + `</foreignObject></svg>`;
+}
+function save(blob, ext){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `zine-${pick.layout}-${pick.hue}.${ext}`;
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+document.getElementById('export').onclick = async () => {
+  const fmt = document.getElementById('fmt').value, px = +document.getElementById('size').value;
+  const svg = svgString(px);
+  if(fmt === 'svg') return save(new Blob([svg], {type:'image/svg+xml'}), 'svg');
+
+  const r = frame.getBoundingClientRect(), h = Math.round(r.height * px / r.width);
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas'); c.width = px; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = PAPER[pick.paper]; ctx.fillRect(0,0,px,h);   // JPEG has no alpha
+    ctx.drawImage(img, 0, 0);
+    try{ c.toBlob(b => save(b, fmt === 'jpeg' ? 'jpg' : fmt), 'image/' + fmt, .93); }
+    catch(err){ exportHint.textContent = 'Export blocked — serve the folder over http: python3 -m http.server'; }
+  };
+  img.onerror = () => exportHint.textContent = 'Export failed to rasterize; try SVG.';
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+};
+
+document.getElementById('copy').onclick = e => {
+  navigator.clipboard.writeText(document.getElementById('recipe').textContent);
+  e.target.textContent = 'copied'; setTimeout(() => e.target.textContent = 'copy recipe', 1200);
+};
+document.getElementById('rand').onclick = () => {
+  AXES.forEach(a => pick[a.k] = a.o[Math.floor(Math.random() * a.o.length)]);
+  drawTags(); drawAxis(); render();
+};
+
+drawTags(); drawAxis(); render();
+</script>
+</body>
+</html>
