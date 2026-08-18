@@ -49,6 +49,9 @@ h2 span{color:var(--accent)}
   box-shadow:0 1px 0 rgba(0,0,0,.06), 0 26px 60px -34px rgba(0,0,0,.55);
 }
 .frame *{position:absolute}
+/* travel style: photo above at its own aspect, ivory panel below — so the sheet stacks instead of 3:5 */
+.frame.stack{aspect-ratio:auto; height:auto; width:min(420px,100%); max-height:76vh; overflow-y:auto}
+.frame.stack img{width:100%; height:auto; display:block; mix-blend-mode:normal; object-fit:unset}
 .frame .anchor{overflow:hidden}
 /* multiply is what makes it ink rather than a photo: highlights drop out and the paper reads through.
    It sits on the wrapper, so the raw and screened copies inside crossfade normally and the pair
@@ -115,6 +118,19 @@ select{font:inherit; color:inherit; background:transparent; border:1px solid var
 .recipe{margin-top:2em; border-top:1px solid var(--line); padding-top:1.2em; white-space:pre-wrap; word-break:break-word; font-size:12px}
 .recipe b{font-weight:400; color:var(--dim)}
 
+/* ---- style picker ---- */
+.styles{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:2vw}
+.style{
+  font:inherit; text-align:left; cursor:pointer; color:inherit;
+  background:transparent; border:1px solid var(--line); padding:1.5em 1.4em; transition:.15s;
+}
+.style:hover{border-color:var(--ink)}
+.style[aria-pressed="true"]{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
+.style h3{font-family:var(--serif); font-size:21px; font-weight:400; margin:0 0 .15em}
+.style code{font-size:11px; color:var(--dim)}
+.style p{margin:.9em 0 0; color:var(--dim); max-width:38ch}
+.style .who{margin-top:1.1em; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim)}
+.style[aria-pressed="true"] .who{color:var(--accent)}
 .credits{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:3vw 2.5vw}
 .credits h3{font-family:var(--serif); font-size:17px; font-weight:400; margin:0 0 .5em}
 .credits p{margin:0; color:var(--dim); max-width:42ch}
@@ -198,31 +214,17 @@ a{color:var(--accent)}
 <div class="wrap">
 
 <section>
-  <h2>Credits <span>reference</span></h2>
-  <div class="credits">
-    <div>
-      <h3>The skill</h3>
-      <p><a href="https://github.com/LiamGvchi/gc-minimal-zine-poster"><strong>gc-minimal-zine-poster</strong></a> v0.3 —
-      a skill by <a href="https://github.com/LiamGvchi">LiamGvchi</a> that turns a theme, sentence, article, mood, or
-      photograph into a sparse paper-texture editorial poster. Released under the MIT License, © 2026 LiamGvchi.</p>
-    </div>
-    <div>
-      <h3>Where these options come from</h3>
-      <p>Every option on this page is transcribed from the skill's own reference files —
-      <code>references/variation-engine.md</code> for the layout, anchor, typography, texture, and decoration axes, and
-      <code>references/style-system.md</code> for the paper, color, and mood rules. Nothing here was invented.</p>
-    </div>
-    <div>
-      <h3>This page</h3>
-      <p>An unofficial visual index of those options, not affiliated with or endorsed by the skill's author.
-      The sheet is a CSS approximation built to preview a recipe — the actual posters are rendered by the skill
-      through an image model, and will not look identical.</p>
-    </div>
-  </div>
+  <h2>1 — Style <span>pick one</span></h2>
+  <div class="styles" id="styles"></div>
 </section>
 
 <section>
-  <h2>Studio <span id="count"></span></h2>
+  <h2>2 — Credits <span>reference</span></h2>
+  <div class="credits" id="credits"></div>
+</section>
+
+<section>
+  <h2>3 — Studio <span id="count"></span></h2>
   <div class="studio">
     <div class="stage">
       <div class="frameWrap">
@@ -261,15 +263,12 @@ a{color:var(--accent)}
   </div>
 </section>
 
-<footer>
-  Static preview only — the real render happens in the skill ·
-  <a href="https://github.com/LiamGvchi/gc-minimal-zine-poster">LiamGvchi/gc-minimal-zine-poster</a> · MIT
-</footer>
+<footer id="foot"></footer>
 </div>
 
 <script>
 // ponytail: options transcribed verbatim from references/variation-engine.md + style-system.md
-const AXES = [
+const ZINE_AXES = [
  {k:'layout', t:'Layout family', d:'Where the visual event sits and how the empty paper is weighted.',
   o:['center-fragment','lower-left-float','upper-right-block','dual-panel','irregular-cutout','type-led','dot-orbit','single-specimen','diagonal-notes','edge-counterweight']},
  {k:'anchor', t:'Anchor form', d:'The material the metaphor is printed as.',
@@ -317,10 +316,50 @@ const TEX = {
  'no texture'                        :[0  ,0  ,''                                            ,''],
 };
 
-const pick = {}; AXES.forEach(a => pick[a.k] = a.o[0]);
-pick.anchor = 'clean rectangular photo crop';   // o[0] is 'tiny faded photo' — too small to judge a photo by
-let active = 'layout';
+// ponytail: options transcribed from travel-photo-abstraction/references/style-guide.md
+// (source-to-reconstruction mapping, layout, colour) + SKILL.md's motif-scale contract.
+const TRAVEL_AXES = [
+ {k:'motif', t:'Motif family', d:'One primary family carries the distilled relationship.',
+  o:['flat block or quiet plane','dot, circle or pill cluster','single thin boundary line','tapered streak or aligned bars','repeated modules with source spacing','partial arc with spokes and nodes','nested or overlapping shapes','shortened lighter echo']},
+ {k:'axis', t:'Structural axis', d:'The one axis the source is organised around.',
+  o:['horizon','vertical','curve','diagonal','no axis']},
+ {k:'place', t:'Motif position', d:'Lower-middle, or a reference-supported asymmetric offset.',
+  o:['lower-middle','asymmetric left','asymmetric right']},
+ {k:'accents', t:'Accent roles', d:'Colours are sampled from your photo, never invented.',
+  o:['1 role','2 roles','3 roles','4 roles','5 roles']},
+ {k:'micro', t:'Archive text', d:'Exactly three items: number, date, and a 1–3 word phrase.',
+  o:['number + date + phrase','number only','no archive text']},
+];
+
+const STYLES = {
+  zine: {
+    name:'Minimal Zine Poster', slug:'gc-minimal-zine-poster', version:'v0.3',
+    author:'LiamGvchi', repo:'https://github.com/LiamGvchi/gc-minimal-zine-poster',
+    blurb:'A theme, sentence or photo becomes a sparse paper-texture editorial poster: one small visual event in a wide field of aged paper, one high-chroma anchor.',
+    axes: ZINE_AXES, first:'layout',
+    defaults:{anchor:'clean rectangular photo crop'},   // o[0] is too small to judge a photo by
+    sources:'<code>references/variation-engine.md</code> for the layout, anchor, typography, texture and decoration axes, and <code>references/style-system.md</code> for the paper, colour and mood rules',
+  },
+  travel: {
+    name:'Travel Photo Abstraction', slug:'travel-photo-abstraction', version:'',
+    author:'Evianis', repo:'https://github.com/Evianis/travel-photo-abstraction',
+    blurb:'Your photograph stays untouched on top. Below it, an ivory panel rebuilds the relationships found in the photo as a few minimal marks, with a number, date and short phrase.',
+    axes: TRAVEL_AXES, first:'motif', defaults:{},
+    sources:'<code>references/style-guide.md</code> for the source-to-mark mapping, layout and colour rules, and <code>SKILL.md</code> for the motif-scale and archive-text contracts',
+  },
+};
+
+let styleKey = localStorage.getItem('zine-style') || 'zine';
+const S = () => STYLES[styleKey];
+const PICKS = {};
+Object.entries(STYLES).forEach(([k,s]) => {
+  PICKS[k] = {}; s.axes.forEach(a => PICKS[k][a.k] = a.o[0]);
+  Object.assign(PICKS[k], s.defaults);
+});
+let pick = PICKS[styleKey];
+let active = S().first;
 let strength = .45;                             // texture amount; full-strength screening is heavy-handed
+let motifW = 36, panelH = 1.3;                  // style-guide.md: 30–42% width, 1.10–1.60× photo height
 
 /* ---------- photo: bundled default, user upload overrides, remove reverts ---------- */
 const DEFAULT_SRC = 'examples/default.jpg';
@@ -330,7 +369,7 @@ const photoSrc = () => userSrc || defaultSrc;
 
 fetch(DEFAULT_SRC).then(r => r.ok ? r.blob() : Promise.reject())
   .then(b => new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); }))
-  .then(d => { defaultSrc = d; render(); })
+  .then(d => { defaultSrc = d; samplePalette(d); render(); })
   .catch(() => {                       // file:// or missing — still display it if it loads
     const im = new Image();
     im.onload = () => { defaultSrc = DEFAULT_SRC; render();
@@ -338,11 +377,42 @@ fetch(DEFAULT_SRC).then(r => r.ok ? r.blob() : Promise.reject())
     im.src = DEFAULT_SRC;
   });
 
+/* ---------- style picker + credits ---------- */
+function drawStyles(){
+  const box = document.getElementById('styles');
+  box.innerHTML = '';
+  Object.entries(STYLES).forEach(([k,s]) => {
+    const b = document.createElement('button');
+    b.className = 'style'; b.setAttribute('aria-pressed', k === styleKey);
+    b.innerHTML = `<h3>${s.name}</h3><code>${s.slug}${s.version?' '+s.version:''}</code>
+      <p>${s.blurb}</p><div class="who">by ${s.author}</div>`;
+    b.onclick = () => {
+      styleKey = k; localStorage.setItem('zine-style', k);
+      pick = PICKS[k]; active = S().first;
+      drawStyles(); drawCredits(); drawTags(); drawAxis(); render();
+    };
+    box.append(b);
+  });
+}
+function drawCredits(){
+  const s = S();
+  document.getElementById('credits').innerHTML = `
+    <div><h3>The skill</h3><p><a href="${s.repo}"><strong>${s.slug}</strong></a> ${s.version} —
+      a skill by <a href="https://github.com/${s.author}">${s.author}</a>. ${s.blurb} Released under the MIT License.</p></div>
+    <div><h3>Where these options come from</h3><p>Every option in the studio is transcribed from the skill's own
+      reference files — ${s.sources}. Nothing here was invented.</p></div>
+    <div><h3>This page</h3><p>An unofficial visual index of those options, not affiliated with or endorsed by the
+      skill's author. The preview is a CSS approximation of a recipe — the real artwork is rendered by the skill
+      through an image model, and will not look identical.</p></div>`;
+  document.getElementById('foot').innerHTML =
+    `Static preview only — the real render happens in the skill · <a href="${s.repo}">${s.author}/${s.slug}</a> · MIT`;
+}
+
 /* ---------- tag nav ---------- */
 const tagsEl = document.getElementById('tags'), axisEl = document.getElementById('axis');
 function drawTags(){
   tagsEl.innerHTML = '';
-  AXES.forEach(a => {
+  S().axes.forEach(a => {
     const b = document.createElement('button');
     b.className = 'tag'; b.setAttribute('aria-selected', a.k === active);
     b.textContent = a.t;
@@ -351,7 +421,7 @@ function drawTags(){
   });
 }
 function drawAxis(){
-  const a = AXES.find(x => x.k === active);
+  const a = S().axes.find(x => x.k === active);
   axisEl.innerHTML = `<h3>${a.t}</h3><p>${a.d}</p>`;
   const box = document.createElement('div'); box.className = 'opts';
   a.o.forEach(o => {
@@ -362,23 +432,28 @@ function drawAxis(){
   });
   axisEl.append(box);
 
-  if(a.k === 'texture'){
+  // sliders live on the axis they belong to; they re-render only the sheet so a drag never loses focus
+  const slider = (id, label, min, max, step, val, fmt, set) => {
     const row = document.createElement('div');
     row.className = 'slider';
-    row.innerHTML = `<label for="strength">strength</label>
-      <input type="range" id="strength" min="0" max="100" step="1" value="${Math.round(strength*100)}">
-      <output>${Math.round(strength*100)}%</output>`;
+    row.innerHTML = `<label for="${id}">${label}</label>
+      <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}">
+      <output>${fmt(val)}</output>`;
     const out = row.querySelector('output');
-    row.querySelector('input').oninput = e => {   // render only — redrawing the axis would drop the drag
-      strength = e.target.value / 100;
-      out.textContent = e.target.value + '%';
-      render();
-    };
+    row.querySelector('input').oninput = e => { set(+e.target.value); out.textContent = fmt(+e.target.value); render(); };
     axisEl.append(row);
-  }
+  };
+  if(a.k === 'texture')
+    slider('strength','strength',0,100,1,Math.round(strength*100),v=>v+'%',v=>strength=v/100);
+  if(a.k === 'motif')
+    slider('motifW','motif width',30,42,1,motifW,v=>v+'% of panel',v=>motifW=v);   // style-guide.md range
+  if(a.k === 'place')
+    slider('panelH','panel height',110,160,5,panelH*100,v=>(v/100).toFixed(2)+'× photo',v=>panelH=v/100);
 }
-document.getElementById('count').textContent =
-  AXES.reduce((n,a) => n * a.o.length, 1).toLocaleString() + ' combinations';
+function updateCount(){
+  document.getElementById('count').textContent =
+    S().axes.reduce((n,a) => n * a.o.length, 1).toLocaleString() + ' combinations';
+}
 
 /* ---------- preview ---------- */
 const frame = document.getElementById('frame'), lens = document.getElementById('lens'),
@@ -521,14 +596,132 @@ function sheetHTML(){
   return html;
 }
 
+/* ---------- travel-photo-abstraction sheet ----------
+   The photo is passed through untouched (style-guide.md: "Never send the photographic panel through
+   generative editing"), and everything invented lives in the ivory panel below it. */
+const IVORY = '#F3F0E8';                    // SKILL.md pins the background to this exact value
+let roles = ['#8894a3','#c8b9a2','#4a5560'];  // replaced by colours sampled from the photo
+
+function samplePalette(src){                 // style-guide.md: extract 3–5 colour roles from the photograph
+  const im = new Image();
+  im.onload = () => {
+    const c = document.createElement('canvas'); c.width = 48; c.height = 48;
+    const x = c.getContext('2d'); x.drawImage(im, 0, 0, 48, 48);
+    const d = x.getImageData(0,0,48,48).data, bins = {};
+    for(let i=0;i<d.length;i+=4){
+      const k = [d[i],d[i+1],d[i+2]].map(v => Math.round(v/40)*40).join(',');
+      (bins[k] = bins[k] || {n:0,r:0,g:0,b:0}); bins[k].n++;
+      bins[k].r+=d[i]; bins[k].g+=d[i+1]; bins[k].b+=d[i+2];
+    }
+    roles = Object.values(bins).sort((a,b)=>b.n-a.n).slice(0,5)
+      .map(v => `rgb(${Math.round(v.r/v.n)},${Math.round(v.g/v.n)},${Math.round(v.b/v.n)})`);
+    render();
+  };
+  im.src = src;
+}
+
+function travelHTML(){
+  const src = photoSrc();
+  const n = +pick.accents[0];                      // "3 roles" → 3
+  const col = i => roles[i % roles.length] || '#6b7280';
+  const cx = {'lower-middle':50, 'asymmetric left':38, 'asymmetric right':63}[pick.place];
+  const w = motifW, h = Math.min(28, w * .7);      // SKILL.md caps motif height at 28% of the panel
+  const x = cx - w/2, y = 58;                      // sits low, with the empty field above it
+  const M = [];                                    // marks, positioned inside the panel in %
+
+  const rect = (l,t,ww,hh,c,o=1) => M.push(`<div style="left:${l}%;top:${t}%;width:${ww}%;height:${hh}%;background:${c};opacity:${o}"></div>`);
+  const dot  = (l,t,d,c,o=1)     => M.push(`<div style="left:${l}%;top:${t}%;width:${d}%;height:${d*2.2}%;border-radius:50%;background:${c};opacity:${o}"></div>`);
+  const line = (l,t,ww,c,th=1)   => M.push(`<div style="left:${l}%;top:${t}%;width:${ww}%;height:${th}px;background:${c}"></div>`);
+
+  switch(pick.motif){
+    case 'flat block or quiet plane':
+      rect(x, y, w*.72, h*.8, col(0));
+      if(n>1) rect(x+w*.78, y+h*.34, w*.22, h*.46, col(1));
+      break;
+    case 'dot, circle or pill cluster':
+      [0,.34,.52,.78,1].slice(0, Math.max(3,n)).forEach((f,i) => dot(x+f*w, y+(i%2?h*.3:0), w*.1, col(i)));
+      break;
+    case 'single thin boundary line':
+      line(x, y+h*.5, w, col(0), 2);
+      if(n>1) dot(x+w*.66, y+h*.5-h*.16, w*.07, col(1));
+      break;
+    case 'tapered streak or aligned bars':
+      [1,.78,.56,.34].forEach((f,i) => rect(x+i*w*.26, y+h*(1-f)*.5, w*.16, h*f, col(i<n?i:0)));
+      break;
+    case 'repeated modules with source spacing':
+      [0,.22,.38,.62,.9].forEach((f,i) => rect(x+f*w, y+(i%2?h*.16:0), w*.12, h*(i%2?.6:.82), col(i<n?i:0)));
+      break;
+    case 'partial arc with spokes and nodes':
+      M.push(`<svg viewBox="0 0 100 60" preserveAspectRatio="none" style="left:${x}%;top:${y}%;width:${w}%;height:${h}%">
+        <path d="M2 56 A 52 52 0 0 1 98 56" fill="none" stroke="${col(0)}" stroke-width="2"/>
+        <path d="M50 56 L50 8 M50 56 L18 22 M50 56 L82 22" stroke="${col(1)}" stroke-width="1" opacity=".8"/></svg>`);
+      if(n>2) dot(x+w*.47, y-h*.08, w*.06, col(2));
+      break;
+    case 'nested or overlapping shapes':
+      rect(x, y, w*.62, h*.86, col(0));
+      rect(x+w*.34, y+h*.24, w*.5, h*.7, col(1 % n), .85);
+      break;
+    case 'shortened lighter echo':
+      rect(x, y, w*.66, h*.6, col(0));
+      rect(x+w*.06, y+h*.68, w*.5, h*.22, col(0), .3);
+      break;
+  }
+
+  // one structural axis, drawn full width like the horizon hairlines in the showcase panels
+  const AX = {horizon:`left:12%;top:${y+h*1.02}%;width:76%;height:1px;background:rgba(27,26,23,.35)`,
+              vertical:`left:${cx}%;top:${y-18}%;width:1px;height:${h+22}%;background:rgba(27,26,23,.3)`,
+              diagonal:`left:14%;top:${y+h*.9}%;width:72%;height:1px;background:rgba(27,26,23,.3);transform:rotate(-7deg)`,
+              curve:''};
+  if(pick.axis === 'curve')
+    M.push(`<svg viewBox="0 0 300 120" preserveAspectRatio="none" style="left:8%;top:${y-14}%;width:84%;height:${h+26}%"><path d="M0 96 C 90 40, 210 118, 300 54" fill="none" stroke="rgba(27,26,23,.3)" stroke-width="1"/></svg>`);
+  else if(AX[pick.axis]) M.push(`<div style="${AX[pick.axis]}"></div>`);
+
+  // archive text — number upper-right, date + phrase in another empty corner
+  let micro = '';
+  if(pick.micro !== 'no archive text'){
+    micro += `<div class="tx" ${ed('t-no')} style="right:7%;top:7%;font-size:6px;letter-spacing:.3em;color:#9a968c">${T('t-no','NO. 001')}</div>`;
+    if(pick.micro === 'number + date + phrase')
+      micro += `<div class="tx" ${ed('t-date')} style="left:7%;bottom:10%;font-size:6px;letter-spacing:.24em;color:#9a968c">${T('t-date','12 AUG 2026')}</div>`
+             + `<div class="tx" ${ed('t-phrase')} style="left:7%;bottom:6%;font-size:6px;letter-spacing:.24em;color:#9a968c">${T('t-phrase','QUIET CROSSING')}</div>`;
+  }
+
+  const photo = src
+    ? `<img src="${src}" style="position:relative;display:block;width:100%">`
+    : `<div style="position:relative;width:100%;padding-top:66%;background:linear-gradient(150deg,#c9c3b6,#9b958a)"></div>`;
+
+  return `<div style="position:relative">${photo}</div>
+          <div style="position:relative;width:100%;padding-top:${panelH*photoRatio*100}%;background:${IVORY}">
+            ${M.join('')}${micro}
+          </div>`;
+}
+
+let photoRatio = .66;                       // photo height ÷ width; updated when the image loads
+
 function render(){
-  document.documentElement.style.setProperty('--accent', HUE[pick.hue]);
-  frame.style.background = PAPER[pick.paper];
-  frame.innerHTML = sheetHTML();
+  const travel = styleKey === 'travel';
+  frame.classList.toggle('stack', travel);
+  if(travel){
+    frame.style.background = IVORY;
+    frame.innerHTML = travelHTML();
+    const im = frame.querySelector('img');
+    if(im && im.complete && im.naturalWidth){
+      const r = im.naturalHeight / im.naturalWidth;
+      if(Math.abs(r - photoRatio) > .002){ photoRatio = r; return render(); }
+    } else if(im){ im.onload = () => { photoRatio = im.naturalHeight/im.naturalWidth; render(); }; }
+    document.documentElement.style.setProperty('--accent', roles[0] || '#6b7280');
+    document.getElementById('recipe').textContent =
+      `[${pick.motif} / ${pick.axis} axis / ${pick.place} / ${pick.accents} sampled from the photo / ${pick.micro}]`
+      + `\nmotif ${motifW}% of panel width, panel ${panelH.toFixed(2)}× photo height, background ${IVORY}.`;
+  } else {
+    document.documentElement.style.setProperty('--accent', HUE[pick.hue]);
+    frame.style.background = PAPER[pick.paper];
+    frame.innerHTML = sheetHTML();
+    document.getElementById('recipe').textContent =
+      `[${pick.layout} / <your metaphor> / ${pick.anchor} / ${pick.type} / ${pick.hue} / ${pick.texture} / ${pick.decor} / ${pick.mood}]`
+      + `\non ${pick.paper} paper, vertical 3:5, 70–90% open field.`;
+  }
   lens.innerHTML = '';   // rebuilt on next hover
-  document.getElementById('recipe').textContent =
-    `[${pick.layout} / <your metaphor> / ${pick.anchor} / ${pick.type} / ${pick.hue} / ${pick.texture} / ${pick.decor} / ${pick.mood}]`
-    + `\non ${pick.paper} paper, vertical 3:5, 70–90% open field.`;
+  updateCount();
 }
 
 /* ---------- magnifier ---------- */
@@ -590,6 +783,7 @@ file.onchange = e => {
   const fr = new FileReader();                  // data URI, so export never taints the canvas
   fr.onload = async () => {
     userSrc = await downscale(fr.result);
+    samplePalette(userSrc);                     // the abstraction's colours come from the photo
     try{ localStorage.setItem('zine-photo', userSrc); }catch(_){ /* too big to remember; still usable now */ }
     fname.textContent = f.name; reset.hidden = false; render();
   };
@@ -601,22 +795,30 @@ reset.onclick = () => {
 };
 
 /* ---------- export ---------- */
+// The travel sheet can be taller than the frame's max-height and scroll inside it, so the exported
+// size comes from the full sheet, not the visible part. One measurement, used by both callers.
+function sheetSize(){
+  const r = frame.getBoundingClientRect();
+  return {w: r.width, h: Math.max(frame.scrollHeight, r.height)};
+}
 // ponytail: XMLSerializer, not innerHTML — foreignObject is parsed as XML, so <img> must self-close
 function svgString(px){
-  const r = frame.getBoundingClientRect(), k = px / r.width;
+  const r = sheetSize(), k = px / r.width;
+  const fullH = r.h;
   const holder = document.createElement('div');
   holder.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
   const sheet = document.createElement('div');
-  sheet.className = 'frame';
-  sheet.setAttribute('style', `position:relative;width:${r.width}px;height:${r.height}px;`
-    + `background:${PAPER[pick.paper]};transform:scale(${k});transform-origin:0 0;box-shadow:none`);
+  sheet.className = frame.className;            // keep .stack, or the travel sheet exports as a 3:5 crop
+  sheet.setAttribute('style', `position:relative;width:${r.width}px;height:${fullH}px;`
+    + `background:${styleKey === 'travel' ? IVORY : PAPER[pick.paper]};max-height:none;overflow:visible;`
+    + `transform:scale(${k});transform-origin:0 0;box-shadow:none`);
   sheet.innerHTML = frame.innerHTML;
   sheet.querySelectorAll('[contenteditable]').forEach(n => n.removeAttribute('contenteditable'));
   holder.append(sheet);
   const css = document.querySelector('style').textContent;   // CDATA: the CSS holds raw '<' in data URIs
   // the sheet references url(#f-…), so the defs must travel with it
   const defs = document.getElementById('fx').innerHTML;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${Math.round(r.height*k)}">`
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${Math.round(fullH*k)}">`
     + defs
     + `<foreignObject width="100%" height="100%">`
     + `<style xmlns="http://www.w3.org/1999/xhtml"><![CDATA[${css}]]></style>`
@@ -624,9 +826,12 @@ function svgString(px){
     + `</foreignObject></svg>`;
 }
 function save(blob, ext){
+  if(!blob){ exportHint.textContent = 'Export produced nothing — try PNG, or a smaller size.'; return; }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `zine-${pick.layout}-${pick.hue}.${ext}`;
+  // name it from whichever style is active — the zine keys do not exist on the travel recipe
+  const tag = S().axes.slice(0,2).map(a => pick[a.k]).join('-').replace(/[^a-z0-9]+/gi,'-');
+  a.download = `${styleKey}-${tag}.${ext}`;
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 document.getElementById('export').onclick = async () => {
@@ -634,12 +839,14 @@ document.getElementById('export').onclick = async () => {
   const svg = svgString(px);
   if(fmt === 'svg') return save(new Blob([svg], {type:'image/svg+xml'}), 'svg');
 
-  const r = frame.getBoundingClientRect(), h = Math.round(r.height * px / r.width);
+  const r = sheetSize(), h = Math.round(r.h * px / r.w);
   const img = new Image();
   img.onload = () => {
     const c = document.createElement('canvas'); c.width = px; c.height = h;
     const ctx = c.getContext('2d');
-    ctx.fillStyle = PAPER[pick.paper]; ctx.fillRect(0,0,px,h);   // JPEG has no alpha
+    // JPEG has no alpha — and pick.paper only exists on the zine recipe
+    ctx.fillStyle = styleKey === 'travel' ? IVORY : PAPER[pick.paper];
+    ctx.fillRect(0,0,px,h);
     ctx.drawImage(img, 0, 0);
     try{ c.toBlob(b => save(b, fmt === 'jpeg' ? 'jpg' : fmt), 'image/' + fmt, .93); }
     catch(err){ exportHint.textContent = 'Export blocked — serve the folder over http: python3 -m http.server'; }
@@ -653,11 +860,11 @@ document.getElementById('copy').onclick = e => {
   e.target.textContent = 'copied'; setTimeout(() => e.target.textContent = 'copy recipe', 1200);
 };
 document.getElementById('rand').onclick = () => {
-  AXES.forEach(a => pick[a.k] = a.o[Math.floor(Math.random() * a.o.length)]);
+  S().axes.forEach(a => pick[a.k] = a.o[Math.floor(Math.random() * a.o.length)]);
   drawTags(); drawAxis(); render();
 };
 
-drawTags(); drawAxis(); render();
+drawStyles(); drawCredits(); drawTags(); drawAxis(); render();
 </script>
 </body>
 </html>
