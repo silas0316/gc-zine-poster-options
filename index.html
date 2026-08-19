@@ -34,6 +34,8 @@ h2 span{color:var(--accent)}
 
 /* ---- studio ---- */
 .studio{display:grid; grid-template-columns:minmax(0,5fr) minmax(0,4fr); gap:4vw; align-items:start}
+.studio.solo{grid-template-columns:1fr}          /* a skill with no options gets the whole width */
+.studio.solo .stage{position:static}
 .stage{position:sticky; top:4vh}
 .panel{position:sticky; top:4vh}
 @media(max-width:900px){
@@ -316,21 +318,6 @@ const TEX = {
  'no texture'                        :[0  ,0  ,''                                            ,''],
 };
 
-// ponytail: options transcribed from travel-photo-abstraction/references/style-guide.md
-// (source-to-reconstruction mapping, layout, colour) + SKILL.md's motif-scale contract.
-const TRAVEL_AXES = [
- {k:'motif', t:'Motif family', d:'One primary family carries the distilled relationship.',
-  o:['flat block or quiet plane','dot, circle or pill cluster','single thin boundary line','tapered streak or aligned bars','repeated modules with source spacing','partial arc with spokes and nodes','nested or overlapping shapes','shortened lighter echo']},
- {k:'axis', t:'Structural axis', d:'The one axis the source is organised around.',
-  o:['horizon','vertical','curve','diagonal','no axis']},
- {k:'place', t:'Motif position', d:'Lower-middle, or a reference-supported asymmetric offset.',
-  o:['lower-middle','asymmetric left','asymmetric right']},
- {k:'accents', t:'Accent roles', d:'Colours are sampled from your photo, never invented.',
-  o:['1 role','2 roles','3 roles','4 roles','5 roles']},
- {k:'micro', t:'Archive text', d:'Exactly three items: number, date, and a 1–3 word phrase.',
-  o:['number + date + phrase','number only','no archive text']},
-];
-
 const STYLES = {
   zine: {
     name:'Minimal Zine Poster', slug:'gc-minimal-zine-poster', version:'v0.3',
@@ -344,7 +331,8 @@ const STYLES = {
     name:'Travel Photo Abstraction', slug:'travel-photo-abstraction', version:'',
     author:'Evianis', repo:'https://github.com/Evianis/travel-photo-abstraction',
     blurb:'Your photograph stays untouched on top. Below it, an ivory panel rebuilds the relationships found in the photo as a few minimal marks, with a number, date and short phrase.',
-    axes: TRAVEL_AXES, first:'motif', defaults:{},
+    // no axes: the skill takes a photograph and decides everything itself
+    axes: [], first:null, defaults:{},
     sources:'<code>references/style-guide.md</code> for the source-to-mark mapping, layout and colour rules, and <code>SKILL.md</code> for the motif-scale and archive-text contracts',
   },
 };
@@ -359,7 +347,7 @@ Object.entries(STYLES).forEach(([k,s]) => {
 let pick = PICKS[styleKey];
 let active = S().first;
 let strength = .45;                             // texture amount; full-strength screening is heavy-handed
-let motifW = 36, panelH = 1.3;                  // style-guide.md: 30–42% width, 1.10–1.60× photo height
+const panelH = 1.3;                             // style-guide.md: lower field 1.10–1.60× the photo
 
 /* ---------- photo: bundled default, user upload overrides, remove reverts ---------- */
 const DEFAULT_SRC = 'examples/default.jpg';
@@ -421,6 +409,10 @@ function drawTags(){
   });
 }
 function drawAxis(){
+  const opts = S().axes.length > 0;
+  document.querySelector('.panel').hidden = !opts;
+  document.querySelector('.studio').classList.toggle('solo', !opts);
+  if(!opts) return;                                 // nothing to choose — the skill decides
   const a = S().axes.find(x => x.k === active);
   axisEl.innerHTML = `<h3>${a.t}</h3><p>${a.d}</p>`;
   const box = document.createElement('div'); box.className = 'opts';
@@ -445,14 +437,11 @@ function drawAxis(){
   };
   if(a.k === 'texture')
     slider('strength','strength',0,100,1,Math.round(strength*100),v=>v+'%',v=>strength=v/100);
-  if(a.k === 'motif')
-    slider('motifW','motif width',30,42,1,motifW,v=>v+'% of panel',v=>motifW=v);   // style-guide.md range
-  if(a.k === 'place')
-    slider('panelH','panel height',110,160,5,panelH*100,v=>(v/100).toFixed(2)+'× photo',v=>panelH=v/100);
 }
 function updateCount(){
-  document.getElementById('count').textContent =
-    S().axes.reduce((n,a) => n * a.o.length, 1).toLocaleString() + ' combinations';
+  document.getElementById('count').textContent = S().axes.length
+    ? S().axes.reduce((n,a) => n * a.o.length, 1).toLocaleString() + ' combinations'
+    : 'upload a photo';
 }
 
 /* ---------- preview ---------- */
@@ -602,47 +591,52 @@ function sheetHTML(){
 const IVORY = '#F3F0E8';                    // SKILL.md pins the background to this exact value
 let roles = ['#8894a3','#c8b9a2','#4a5560'];  // replaced by colours sampled from the photo
 
-/* Deconstruct the photo into measurable evidence: where the horizon is, and the skyline profile of the
-   dominant dark mass. SKILL.md asks for dominant mass, axes, boundaries, counts and intervals — this is
-   the part a browser can actually measure, so every mark below is drawn from it rather than invented. */
+/* Trace the photograph's dominant mass into a silhouette. The skill's own panels are a distilled shape
+   of the subject plus a ground line and a shortened reflection, so that is what gets built — from the
+   photo's darkest 18% of pixels, cropped to the mass, painted in a colour sampled from the source. */
 let evidence = null;
 function analyze(src){
   const im = new Image();
   im.onload = () => {
-    const W = 96, H = Math.max(8, Math.round(W * im.naturalHeight / im.naturalWidth));
+    const W = 220, H = Math.max(10, Math.round(W * im.naturalHeight / im.naturalWidth));
     const c = document.createElement('canvas'); c.width = W; c.height = H;
     const g = c.getContext('2d'); g.drawImage(im, 0, 0, W, H);
-    const d = g.getImageData(0,0,W,H).data;
-    const L = (x,y) => { const i = (y*W+x)*4; return d[i]*.299 + d[i+1]*.587 + d[i+2]*.114; };
+    const img = g.getImageData(0,0,W,H), d = img.data, lum = new Float32Array(W*H);
+    for(let i=0,p=0;i<d.length;i+=4,p++) lum[p] = d[i]*.299 + d[i+1]*.587 + d[i+2]*.114;
 
-    let sum = 0, sq = 0;
-    for(let y=0;y<H;y++) for(let x=0;x<W;x++){ const v = L(x,y); sum += v; sq += v*v; }
-    const mean = sum/(W*H), sd = Math.sqrt(Math.max(0, sq/(W*H) - mean*mean));
+    // threshold at the 18th percentile so any photo yields a comparable amount of ink
+    const th = Float32Array.from(lum).sort()[Math.floor(W*H*.18)];
 
-    // structural axis: the row where tone changes hardest, top to bottom
-    let hy = Math.round(H*.6), best = -1;
-    for(let y=1;y<H-1;y++){
-      let s = 0; for(let x=0;x<W;x++) s += Math.abs(L(x,y+1) - L(x,y-1));
-      if(s/W > best){ best = s/W; hy = y; }
+    // darkest sampled role carries the mass; falls back to a neutral ink
+    const ink = roles.map(r => { const m = /(\d+),\s*(\d+),\s*(\d+)/.exec(r); return m ? {r:+m[1],g:+m[2],b:+m[3]} : null; })
+      .filter(Boolean).sort((a,b) => (a.r+a.g+a.b) - (b.r+b.g+b.b))[0] || {r:58,g:66,b:78};
+
+    let x0 = W, x1 = 0, y0 = H, y1 = 0;
+    const out = new Uint8ClampedArray(W*H*4);
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+      const p = y*W+x;
+      if(lum[p] < th){
+        // drop specks: keep a pixel only when its neighbours are dark too
+        let n = 0;
+        for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+          const q = (y+dy)*W + (x+dx);
+          if(q>=0 && q<W*H && lum[q] < th) n++;
+        }
+        if(n < 5) continue;
+        const o = p*4;
+        out[o] = ink.r; out[o+1] = ink.g; out[o+2] = ink.b; out[o+3] = 255;
+        if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
+      }
     }
-    // Mass per column across the WHOLE frame, not just above the horizon: the subject is often below it
-    // (a figure on a sea wall), and a skyline-only scan reports an empty photo.
-    const th = mean - sd*.45, raw = [];
-    for(let x=0;x<W;x++){
-      let dark = 0;
-      for(let y=0;y<H;y++) if(L(x,y) < th) dark++;
-      raw.push(dark/H);
-    }
-    const sm = raw.map((v,i,a) => (a[Math.max(0,i-1)] + v + a[Math.min(a.length-1,i+1)])/3);
-    const peak = Math.max(...sm, .001);
-    const prof = sm.map(v => v/peak);                     // 0 = empty column, 1 = the densest column
-    evidence = {
-      hy: hy/H, prof,
-      // count separated clusters, not every wiggle: enter a cluster above .62, leave it below .42
-      peaks: (() => { let n = 0, inside = false;
-        prof.forEach(v => { if(!inside && v > .62){ inside = true; n++; } else if(inside && v < .42) inside = false; });
-        return n; })(),
-    };
+    if(x1 <= x0 || y1 <= y0){ evidence = null; render(); return; }
+
+    const cw = x1-x0+1, ch = y1-y0+1;
+    const cut = document.createElement('canvas'); cut.width = cw; cut.height = ch;
+    const full = document.createElement('canvas'); full.width = W; full.height = H;
+    full.getContext('2d').putImageData(new ImageData(out, W, H), 0, 0);
+    cut.getContext('2d').drawImage(full, x0, y0, cw, ch, 0, 0, cw, ch);
+
+    evidence = {url: cut.toDataURL(), ratio: ch/cw};
     render();
   };
   im.src = src;
@@ -668,87 +662,28 @@ function samplePalette(src){                 // style-guide.md: extract 3–5 co
 
 function travelHTML(){
   const src = photoSrc();
-  const n = +pick.accents[0];                      // "3 roles" → 3
-  const col = i => roles[i % roles.length] || '#6b7280';
-  const cx = {'lower-middle':50, 'asymmetric left':38, 'asymmetric right':63}[pick.place];
-  const w = motifW, h = Math.min(28, w * .7);      // SKILL.md caps motif height at 28% of the panel
-  const x = cx - w/2, y = 58;                      // sits low, with the empty field above it
-  const M = [];                                    // marks, positioned inside the panel in %
+  // one composition, because the skill offers no options: photo untouched above, and below it the
+  // traced mass, a ground line, and a shortened lighter reflection (style-guide.md's mapping table).
+  const w = 36;                                     // SKILL.md: motif 30-42% of panel width
+  const panelAspect = panelH * photoRatio;          // panel height as a fraction of its width
+  let h = evidence ? Math.min(26, w * evidence.ratio / panelAspect) : 12;   // capped under 28% of height
+  const x = 50 - w/2, base = 62 + h;
 
-  const rect = (l,t,ww,hh,c,o=1) => M.push(`<div style="left:${l}%;top:${t}%;width:${ww}%;height:${hh}%;background:${c};opacity:${o}"></div>`);
-  const dot  = (l,t,d,c,o=1)     => M.push(`<div style="left:${l}%;top:${t}%;width:${d}%;height:${d*2.2}%;border-radius:50%;background:${c};opacity:${o}"></div>`);
-  const line = (l,t,ww,c,th=1)   => M.push(`<div style="left:${l}%;top:${t}%;width:${ww}%;height:${th}px;background:${c}"></div>`);
-
-  // Every mark below reads the measured profile. `t(i)` is the mass height at column i, 0 (none) to 1 (tall).
-  const P = evidence ? evidence.prof : null;
-  const N = P ? P.length : 0;
-  const t = i => P ? P[Math.max(0, Math.min(N-1, i|0))] : .5;
-  const at = f => t(f * (N-1));
-  const sil = (top, height, flip) => {                      // the skyline itself, as one filled shape
-    const pts = [];
-    for(let i=0;i<N;i+=2) pts.push(`${(i/(N-1)*100).toFixed(1)},${((flip?at(i/(N-1)):1-at(i/(N-1)))*100).toFixed(1)}`);
-    return `<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="left:${x}%;top:${top}%;width:${w}%;height:${height}%">
-      <polygon points="0,${flip?0:100} ${pts.join(' ')} 100,${flip?0:100}" fill="${col(0)}"/></svg>`;
-  };
-  const samples = k => Array.from({length:k}, (_,i) => (i+.5)/k);
-
-  switch(pick.motif){
-    case 'flat block or quiet plane': {           // the mass reduced to its own bounding plane
-      let hi = 0, l = 1, r = 0;
-      for(let i=0;i<N;i++){ const v = t(i/(N-1)*(N-1)); if(v>.15){ l = Math.min(l,i/(N-1)); r = Math.max(r,i/(N-1)); hi = Math.max(hi,v); } }
-      if(r<=l){ l = .1; r = .9; hi = .7; }
-      rect(x+l*w, y+h*(1-hi), (r-l)*w, h*hi, col(0));
-      break;
-    }
-    case 'dot, circle or pill cluster':           // one dot per sampled column, riding the real skyline
-      samples(Math.max(3,n+2)).forEach((f,i) => dot(x+f*w - w*.05, y+h*(1-at(f)) - h*.04, w*.09, col(i)));
-      break;
-    case 'single thin boundary line':             // just the boundary the photo actually has
-      line(x, y+h, w, col(0), 2);
-      if(n>1){ const pk = samples(N).reduce((b,f)=>at(f)>at(b)?f:b, .5); dot(x+pk*w-w*.035, y+h*(1-at(pk))-h*.05, w*.07, col(1)); }
-      break;
-    case 'tapered streak or aligned bars':        // bar heights are the measured mass heights
-      samples(5).forEach((f,i) => rect(x+f*w-w*.07, y+h*(1-at(f)), w*.14, h*at(f)+.4, col(i<n?i:0)));
-      break;
-    case 'repeated modules with source spacing':  // module count follows the peaks counted in the photo
-      samples(Math.max(3, Math.min(7, evidence ? evidence.peaks || 4 : 4))).forEach((f,i) =>
-        rect(x+f*w-w*.05, y+h*(1-at(f)), w*.1, h*at(f)+.4, col(i<n?i:0)));
-      break;
-    case 'partial arc with spokes and nodes': {   // spokes rise to the real profile, not a fixed fan
-      const sp = samples(3).map(f => `M50 100 L${(f*100).toFixed(0)} ${((1-at(f))*100).toFixed(0)}`).join(' ');
-      M.push(`<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="left:${x}%;top:${y}%;width:${w}%;height:${h}%">
-        <path d="M0 100 Q 50 ${(100-at(.5)*120).toFixed(0)} 100 100" fill="none" stroke="${col(0)}" stroke-width="2"/>
-        <path d="${sp}" stroke="${col(1)}" stroke-width="1" opacity=".75" fill="none"/></svg>`);
-      break;
-    }
-    case 'nested or overlapping shapes':          // the silhouette, with the mass plane behind it
-      rect(x+w*.12, y+h*.3, w*.5, h*.7, col(1 % Math.max(1,n)), .5);
-      M.push(sil(y, h, false));
-      break;
-    case 'shortened lighter echo':                // silhouette plus its shortened reflection
-      M.push(sil(y, h*.72, false));
-      M.push(`<div style="left:${x}%;top:${y+h*.74}%;width:${w}%;height:${h*.26}%;opacity:.28;transform:scaleY(-1)">
-        ${sil(0, 100, false).replace(/left:[^;]+;top:[^;]+;width:[^;]+;height:[^%]+%/, 'left:0;top:0;width:100%;height:100%')}</div>`);
-      break;
+  let M = '';
+  if(evidence){
+    M += `<img src="${evidence.url}" style="left:${x}%;top:${base-h}%;width:${w}%;height:${h}%;object-fit:contain;object-position:bottom">`;
+    M += `<div style="left:${x-9}%;top:${base}%;width:${w+18}%;height:1px;background:rgba(27,26,23,.42)"></div>`;
+    // shortened, lighter echo aligned to its source
+    M += `<div style="left:${x}%;top:${base+.6}%;width:${w}%;height:${h*.42}%;opacity:.22;transform:scaleY(-1);overflow:hidden">
+            <img src="${evidence.url}" style="position:absolute;left:0;bottom:0;width:100%;height:${(1/.42*100).toFixed(0)}%;object-fit:contain;object-position:bottom">
+          </div>`;
   }
 
-  // one structural axis, drawn full width like the horizon hairlines in the showcase panels
-  const AX = {horizon:`left:12%;top:${y+h*1.02}%;width:76%;height:1px;background:rgba(27,26,23,.35)`,
-              vertical:`left:${cx}%;top:${y-18}%;width:1px;height:${h+22}%;background:rgba(27,26,23,.3)`,
-              diagonal:`left:14%;top:${y+h*.9}%;width:72%;height:1px;background:rgba(27,26,23,.3);transform:rotate(-7deg)`,
-              curve:''};
-  if(pick.axis === 'curve')
-    M.push(`<svg viewBox="0 0 300 120" preserveAspectRatio="none" style="left:8%;top:${y-14}%;width:84%;height:${h+26}%"><path d="M0 96 C 90 40, 210 118, 300 54" fill="none" stroke="rgba(27,26,23,.3)" stroke-width="1"/></svg>`);
-  else if(AX[pick.axis]) M.push(`<div style="${AX[pick.axis]}"></div>`);
-
-  // archive text — number upper-right, date + phrase in another empty corner
-  let micro = '';
-  if(pick.micro !== 'no archive text'){
-    micro += `<div class="tx" ${ed('t-no')} style="right:7%;top:7%;font-size:6px;letter-spacing:.3em;color:#9a968c">${T('t-no','NO. 001')}</div>`;
-    if(pick.micro === 'number + date + phrase')
-      micro += `<div class="tx" ${ed('t-date')} style="left:7%;bottom:10%;font-size:6px;letter-spacing:.24em;color:#9a968c">${T('t-date','12 AUG 2026')}</div>`
-             + `<div class="tx" ${ed('t-phrase')} style="left:7%;bottom:6%;font-size:6px;letter-spacing:.24em;color:#9a968c">${T('t-phrase','QUIET CROSSING')}</div>`;
-  }
+  // exactly three peripheral microtype items
+  const micro =
+    `<div class="tx" ${ed('t-no')} style="right:7%;top:7%;font-size:6px;letter-spacing:.3em;color:#9a968c">${T('t-no','NO. 001')}</div>`
+  + `<div class="tx" ${ed('t-date')} style="left:7%;bottom:10%;font-size:6px;letter-spacing:.24em;color:#9a968c">${T('t-date', todayLabel())}</div>`
+  + `<div class="tx" ${ed('t-phrase')} style="left:7%;bottom:6%;font-size:6px;letter-spacing:.24em;color:#9a968c">${T('t-phrase','QUIET CROSSING')}</div>`;
 
   const photo = src
     ? `<img src="${src}" style="position:relative;display:block;width:100%">`
@@ -756,11 +691,15 @@ function travelHTML(){
 
   return `<div style="position:relative">${photo}</div>
           <div style="position:relative;width:100%;padding-top:${panelH*photoRatio*100}%;background:${IVORY}">
-            ${M.join('')}${micro}
+            ${M}${micro}
           </div>`;
 }
 
 let photoRatio = .66;                       // photo height ÷ width; updated when the image loads
+const todayLabel = () => {                  // the skill's DD MON YYYY archive line
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2,'0')} ${['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][d.getMonth()]} ${d.getFullYear()}`;
+};
 
 function render(){
   const travel = styleKey === 'travel';
@@ -775,8 +714,8 @@ function render(){
     } else if(im){ im.onload = () => { photoRatio = im.naturalHeight/im.naturalWidth; render(); }; }
     document.documentElement.style.setProperty('--accent', roles[0] || '#6b7280');
     document.getElementById('recipe').textContent =
-      `[${pick.motif} / ${pick.axis} axis / ${pick.place} / ${pick.accents} sampled from the photo / ${pick.micro}]`
-      + `\nmotif ${motifW}% of panel width, panel ${panelH.toFixed(2)}× photo height, background ${IVORY}.`;
+      `Upload a photograph. The skill deconstructs it, distills the relationships, and rebuilds them\n`
+      + `as a new abstract panel below the untouched original — no options to set.`;
   } else {
     document.documentElement.style.setProperty('--accent', HUE[pick.hue]);
     frame.style.background = PAPER[pick.paper];
@@ -868,13 +807,13 @@ function sheetSize(){
 }
 // ponytail: XMLSerializer, not innerHTML — foreignObject is parsed as XML, so <img> must self-close
 function svgString(px){
-  const r = sheetSize(), k = px / r.width;
+  const r = sheetSize(), k = px / r.w;
   const fullH = r.h;
   const holder = document.createElement('div');
   holder.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
   const sheet = document.createElement('div');
   sheet.className = frame.className;            // keep .stack, or the travel sheet exports as a 3:5 crop
-  sheet.setAttribute('style', `position:relative;width:${r.width}px;height:${fullH}px;`
+  sheet.setAttribute('style', `position:relative;width:${r.w}px;height:${fullH}px;`
     + `background:${styleKey === 'travel' ? IVORY : PAPER[pick.paper]};max-height:none;overflow:visible;`
     + `transform:scale(${k});transform-origin:0 0;box-shadow:none`);
   sheet.innerHTML = frame.innerHTML;
@@ -895,7 +834,7 @@ function save(blob, ext){
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   // name it from whichever style is active — the zine keys do not exist on the travel recipe
-  const tag = S().axes.slice(0,2).map(a => pick[a.k]).join('-').replace(/[^a-z0-9]+/gi,'-');
+  const tag = S().axes.slice(0,2).map(a => pick[a.k]).join('-').replace(/[^a-z0-9]+/gi,'-') || 'abstraction';
   a.download = `${styleKey}-${tag}.${ext}`;
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
