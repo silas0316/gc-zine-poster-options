@@ -120,6 +120,22 @@ select{font:inherit; color:inherit; background:transparent; border:1px solid var
 .recipe{margin-top:2em; border-top:1px solid var(--line); padding-top:1.2em; white-space:pre-wrap; word-break:break-word; font-size:12px}
 .recipe b{font-weight:400; color:var(--dim)}
 
+/* ---- "this is a mock" label + run-the-real-skill launcher ---- */
+.mock{
+  margin:0 0 1.4em; padding:.9em 1.1em; max-width:52ch;
+  border-left:2px solid var(--accent); background:rgba(27,26,23,.04);
+  color:var(--ink); font-size:12px;
+}
+.launch{margin-top:3em; border-top:1px solid var(--line); padding-top:1.6em}
+.launch h3{font-family:var(--serif); font-size:19px; font-weight:400; margin:0 0 .3em}
+.launch p{margin:0 0 1.4em; color:var(--dim); max-width:56ch}
+.launch h4{font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--dim);
+  font-weight:400; margin:1.6em 0 .6em}
+.launch pre{
+  margin:0; padding:.9em 1em; background:rgba(27,26,23,.05); border:1px solid var(--line);
+  overflow-x:auto; font-size:11.5px; line-height:1.6; white-space:pre-wrap; word-break:break-word;
+}
+.launch .row{display:flex; gap:10px; align-items:center; margin-top:.7em; flex-wrap:wrap}
 /* ---- style picker ---- */
 .styles{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:2vw}
 .style{
@@ -229,6 +245,7 @@ a{color:var(--accent)}
   <h2>3 — Studio <span id="count"></span></h2>
   <div class="studio">
     <div class="stage">
+      <p class="mock" id="mock"></p>
       <div class="frameWrap">
         <div class="frame" id="frame"></div>
         <div class="lens" id="lens"></div>
@@ -254,6 +271,7 @@ a{color:var(--accent)}
         <button class="btn ghost" id="mag">magnifier: on</button>
       </div>
       <div class="hint" id="exportHint">Hover the sheet to magnify. Click any text on the sheet to edit it.</div>
+      <div class="launch" id="launch"></div>
     </div>
 
     <div class="panel">
@@ -326,6 +344,10 @@ const STYLES = {
     axes: ZINE_AXES, first:'layout',
     defaults:{anchor:'clean rectangular photo crop'},   // o[0] is too small to judge a photo by
     sources:'<code>references/variation-engine.md</code> for the layout, anchor, typography, texture and decoration axes, and <code>references/style-system.md</code> for the paper, colour and mood rules',
+    // verbatim from the skill's own README
+    install:'git clone https://github.com/LiamGvchi/gc-minimal-zine-poster.git \\\n  ~/.codex/skills/gc-minimal-zine-poster-v0-3',
+    prompt:'Use $gc-minimal-zine-poster-v0-3 to make a poster about a rainy secondhand bookstore.',
+    mock:'The sheet below is CSS, not the skill. It shows what a recipe looks like — the real poster is drawn by an image model.',
   },
   travel: {
     name:'Travel Photo Abstraction', slug:'travel-photo-abstraction', version:'',
@@ -334,6 +356,9 @@ const STYLES = {
     // no axes: the skill takes a photograph and decides everything itself
     axes: [], first:null, defaults:{},
     sources:'<code>references/style-guide.md</code> for the source-to-mark mapping, layout and colour rules, and <code>SKILL.md</code> for the motif-scale and archive-text contracts',
+    install:'git clone https://github.com/Evianis/travel-photo-abstraction.git\ncp -R ./travel-photo-abstraction ~/.codex/skills/travel-photo-abstraction',
+    prompt:'Use $travel-photo-abstraction to analyze my uploaded photograph. Map its most distinctive observable facts to minimal abstract marks, then generate a faithful photo-plus-abstraction editorial study.',
+    mock:'This is NOT the skill’s output. The panel below is traced in your browser from where the photo is dark. The skill sends your photo to an image model that recognises what is in it, picks which relationships matter, and writes the phrase itself.',
   },
 };
 
@@ -394,6 +419,36 @@ function drawCredits(){
       through an image model, and will not look identical.</p></div>`;
   document.getElementById('foot').innerHTML =
     `Static preview only — the real render happens in the skill · <a href="${s.repo}">${s.author}/${s.slug}</a> · MIT`;
+
+  document.getElementById('mock').textContent = s.mock;
+
+  // The page cannot run a skill: that needs an image model and the skill's own scripts. So hand the
+  // visitor the exact install and prompt lines from the skill's README instead of pretending.
+  document.getElementById('launch').innerHTML = `
+    <h3>Run the real skill</h3>
+    <p>This page can't generate anything — it has no image model. To get the actual artwork, install
+       ${s.name} in Codex and give it your photo.</p>
+    <h4>1 · install</h4><pre id="cmd">${s.install}</pre>
+    <div class="row"><button class="btn ghost" data-copy="cmd">copy command</button>
+      <span class="hint" style="margin:0">then start a new Codex task so the skill is found</span></div>
+    <h4>2 · prompt</h4><pre id="say">${s.prompt}</pre>
+    <div class="row"><button class="btn ghost" data-copy="say">copy prompt</button>
+      <a class="hint" style="margin:0" href="${s.repo}#readme">full README →</a></div>`;
+
+  document.querySelectorAll('[data-copy]').forEach(b =>
+    b.onclick = () => copy(document.getElementById(b.dataset.copy), b));
+}
+
+// Say "copied" only when it actually copied; otherwise select the text so ⌘C still works.
+function copy(el, btn){
+  const was = btn.dataset.label || (btn.dataset.label = btn.textContent);
+  const done = ok => { btn.textContent = ok ? 'copied' : 'press ⌘C'; setTimeout(() => btn.textContent = was, 1400); };
+  const select = () => {
+    const r = document.createRange(); r.selectNodeContents(el);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  };
+  if(!navigator.clipboard){ select(); return done(false); }
+  navigator.clipboard.writeText(el.textContent).then(() => done(true), () => { select(); done(false); });
 }
 
 /* ---------- tag nav ---------- */
@@ -859,10 +914,7 @@ document.getElementById('export').onclick = async () => {
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 };
 
-document.getElementById('copy').onclick = e => {
-  navigator.clipboard.writeText(document.getElementById('recipe').textContent);
-  e.target.textContent = 'copied'; setTimeout(() => e.target.textContent = 'copy recipe', 1200);
-};
+document.getElementById('copy').onclick = e => copy(document.getElementById('recipe'), e.target);
 document.getElementById('rand').onclick = () => {
   S().axes.forEach(a => pick[a.k] = a.o[Math.floor(Math.random() * a.o.length)]);
   drawTags(); drawAxis(); render();
